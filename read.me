@@ -1,0 +1,156 @@
+P.A.D.D.I. stands for "Project Assistant and Data Delivery Interface". Designed
+to help the EDU Consulting team with creating project directory trees and pulling in
+copies of report templates. The technical side of how PADDI works is
+straightforward, and as such, it doesn't need a
+fancy documentation approach, hence the boring
+read.me file. PADDI is built on the Tkinter framework for all it's graphical
+elements (https://docs.python.org/3/library/tkinter.html) and utilizes python's
+inbuilt os functionality, shutil, and regular expressions. 
+
+Structure of PADDI code:
+
+ui.py
+  Class GUI()
+    __init__
+        Populates the window for the user to interact with, defines variables,
+        and establishes linking between user inputs and function calls.
+    update_state_dropdown(self)
+        Takes no argument other than self. This function looks at the value of
+        the country variable stored in the GUI class and populates row to select
+        state differently depending on country selected. Returns nothing, as it
+        updates the dropdown and label in place.
+
+    update_school_dropdown(self)
+        takes no arguments other than self, checks if agg was selected and then
+        uses os.listdirs() to generate a list of directories from the edu
+        google drive location provided to backend based on user selection of
+        state/province. Returns nothing, as it just modifies the already open
+        app window.
+
+    agg_box_gen(self)
+        Takes no args other than self, as all the required variables are part
+        of the GUI class. This function looks at the number selected/input by
+        the user and updates the app window to accomodate that number of school
+        names to be inputted. It also tethers each of those fields to a name
+        using a dict to ensure we can access those values later when we're
+        populating agg directory trees.
+
+    repop_textboxes(self)
+        Similarly takes no args, relies entirely on the GUI attributes that
+        are assigned by the user interacting with the UI. clears and repopulates the
+        textboxes based on user input, since a PDGA has different input
+        requirements from an EIS and Aggregates require a similarly different
+        set of inputs to generate, which will be made more clear when we talk
+        about the backend. 
+
+    school_path(self)
+        Same deal with the args, but uses the inputs from the user to create a
+        filepath pointing toward G:\Shared Drives\EDU Consulting - Private\Completed Reports
+        which is the file location on the google drive that the EDU consulting
+        team saves all their reports, in process or not. I don't make the
+        rules, I just follow them.
+
+    run(self)
+        YOu get the picture with the lack of arguments. takes user inputs,
+        which are attributes of the GUI class and evaluates what functionality
+        to run based on the inputs provided. Specifically it will create an eis
+        file tree and pull in eis reports if EIS is selected, and it will do
+        the same for PDGA if PDGA is selected. 
+
+
+backend.py
+    get_schools(country, state)
+        Takes a country and state, appends to the path:G:\Shared Drives\EDU Consulting - Private\Completed Reports
+        and attempts to list all the directories using  os.listdirs(). If successful,
+        appends "New" to the list of directories and returns that list. Otherwise, adds
+        "New" to an empty list and returns that.
+
+    make_proj_tree(country, state, school, year, proj):
+        attempts to create directory at G:\Shared Drives\EDU Consulting -
+        Private\Completed Reports for a given country, state, school, year,
+        proj terminating in Drafts, Admin, Finals, ForDesign, and
+        Data. If that full directory tree already exists, does nothing,
+        otherwise, creates it.
+
+    make_agg_tree(country, state, school, year, proj):
+        does the same as make_proj_tree, with a minor distinction:
+        make_agg_tree requires an aggregate name, which is put in the path
+        after state, where typically there would be a school instead it's the
+        agg name with schools nested below it. all other functionality is
+        similar.
+
+    import_admin(country, state, school, year, acronym, projType, schoolType,
+                 schoolID=None, dataRun=None, completionsBaseYear=None):
+        Takes args, and creates a new document path for copy to location,
+        uses os.path.exists() to check if the document already
+        exists, if so, calls shutil.copy() to move the file from the template
+        location (found and copied using matchReCopy) method to the new working
+        directory. If file exists, nothing happens, as we don't want to 
+        overwrite the work that a consultant could've done.
+        It does this for each different project type according to the needs of
+        that specific project. Will also populate a PDGA data survey pulled
+        from the api using get_pdga_data_survey().
+
+    import_agg_admin()
+        Does what import_admin does, but for an agg. only works for EIS.
+
+    matchReCopy(report, regex, filetype, location, country, state, school,
+                projType, acronym="", year="2021", aggName=""):
+        report - string describing the type of report.
+        regex - string to match using regexes.
+        location - pathlike object indicating the locaiton you want to search
+        for your regex.
+        country, state, school, projtype - strings, self explanatory.
+        Takes regex and searches location for regex, then copys the resulting
+        file with shutil.copy() into a new path made from country, state,
+        school, projtype, year, acronym and report.
+
+    import_templates(projType, schoolType, country, state, school, year,
+                     acronym, aggName="", runDrafts=False):
+        does the same as import_admin, but instead of admin files, imports the
+        draft files into the user defined location.
+
+    import_finals(projType, schoolType, country, state, school, year, acronym, aggName=""):
+        Does same as import_admin and import_templates, but instead imports
+        final files.
+        j
+
+
+word.py
+    make_contents_dict()
+        Takes argument file_path and creates a dictionary containing the name
+        of the subfile from the openXML formatted file (docx, ppt, any
+        microsoft office document) as keys, and the contents of that file as a
+        byte object as the value. This is particularly useful if you're trying
+        to see the specific format of a particular section of the xml, as you
+        can view each piece independently. Be aware, some of these xml files
+        can be massive, so it's best to view them in small chunks.
+        
+    replace_contents_dict()
+        Takes arguments old (a bytes or bytes like object), new (a bytes or
+        bytes like object) and contents_dict from make_contents_dict. this goes
+        through and replaces instances of old with new in the values of
+        contents_dict, which should be bytearray objects.
+
+    generate_occurance_list()
+        Iterates through a contents_dict from make_contents_dict and outputs a
+        dict with key being the name of the xml file, and value being the first
+        index your search element. Useful for specifically examining a
+        particular string/bytes format in the xml. This is how I determined
+        file_path_parser needed to have different outputs, one quad slash, one
+        dual path.
+
+    file_path_parser()
+        This takes a filepath, and checks whether it has double slashes or
+        quadruple slashes. If it has double slashes, will create a path with
+        quad slashes, and vice versa. returns two values, one path with double
+        slashes, and one with quad slashes. this is necessary when working with
+        docx files that have visualizations on them, since the path is
+        formatted in both double and quad slash paths.
+
+    change_source()
+        This does exactly what it says. Takes an old path, new path, and a
+        source file, and breaks down the source file into its component xml
+        files using same method as make_contents_dict, then iterates through
+        each xml file and replaces old path with new path. THen it writes those
+        modified byte objects to the same file.
